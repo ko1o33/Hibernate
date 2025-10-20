@@ -3,11 +3,9 @@ package org.example.repository;
 import org.example.dto.UserDto;
 import org.example.entity.User;
 
-import java.util.Optional;
+public interface UserRepository {
 
-public interface CRUD_Operation {
-
-    void saveUser(UserDto userDto);
+    User saveUser(UserDto userDto);
 
     User findUserByEmail(String email);
 

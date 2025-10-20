@@ -3,7 +3,7 @@ package org.example.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dto.UserDto;
 import org.example.entity.User;
-import org.example.mistake.MyMistake;
+import org.example.exception.MyException;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
@@ -11,32 +11,37 @@ import org.hibernate.cfg.Configuration;
 import java.time.LocalDateTime;
 
 @Slf4j
-public class CRUD_OperationImpl implements CRUD_Operation {
+public class UserRepositoryImpl implements UserRepository {
 
-    private static final CRUD_OperationImpl instance = new CRUD_OperationImpl();
+    private static final UserRepositoryImpl instance = new UserRepositoryImpl();
 
     private Configuration configuration;
     private SessionFactory sessionFactory;
     private Transaction transaction;
 
-    private CRUD_OperationImpl() {
+
+    private UserRepositoryImpl() {
         configuration = new Configuration().configure();
         configuration.addAnnotatedClass(User.class);
         sessionFactory = configuration.buildSessionFactory();
-        transaction= null;
+        transaction = null;
     }
 
-    public static CRUD_OperationImpl getInstance() {
+    public UserRepositoryImpl(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
+
+    public static UserRepositoryImpl getInstance() {
         return instance;
     }
 
 
     @Override
-    public void saveUser(UserDto userDto) {
+    public User saveUser(UserDto userDto) {
         try (var session = sessionFactory.openSession()) {
             log.info("Save UserDto : {}", userDto.toString());
             transaction = session.beginTransaction();
-            var user = User.builder()
+            User user = User.builder()
                     .age(userDto.getAge())
                     .email(userDto.getEmail())
                     .name(userDto.getName())
@@ -45,9 +50,11 @@ public class CRUD_OperationImpl implements CRUD_Operation {
             session.persist(user);
             transaction.commit();
             log.info("User saved successfully with ID: {}", user.toString());
-        }catch (Exception e){
-            log.error("Error occurred :"+e.getMessage());
-            throw e;
+            return user;
+        } catch (Exception e) {
+            transaction.rollback();
+            log.error("Error occurred :" + e.getMessage());
+            throw new MyException(e.getMessage());
         }
     }
 
@@ -59,12 +66,12 @@ public class CRUD_OperationImpl implements CRUD_Operation {
             User user = session.createQuery(sql, User.class).setParameter("email", email).uniqueResult();
             if (user == null) {
                 log.info("User not found with email : {}", email);
-                throw new MyMistake("User not found");
+                throw new MyException("User not found");
             }
             log.info("User found with email : {}", email);
-            return  user;
-        }catch (Exception e){
-            log.error("Error occurred :"+e.getMessage());
+            return user;
+        } catch (Exception e) {
+            log.error("Error occurred :" + e.getMessage());
             throw e;
         }
     }
@@ -76,12 +83,12 @@ public class CRUD_OperationImpl implements CRUD_Operation {
             User user = session.find(User.class, id);
             if (user == null) {
                 log.info("User not found with id : {}", id);
-                throw new MyMistake("User not found");
+                throw new MyException("User not found");
             }
             log.info("User found with id : {}", id);
-            return  user;
-        }catch (Exception e){
-            log.error("Error occurred :"+e.getMessage());
+            return user;
+        } catch (Exception e) {
+            log.error("Error occurred :" + e.getMessage());
             throw e;
         }
     }
@@ -94,8 +101,9 @@ public class CRUD_OperationImpl implements CRUD_Operation {
             session.remove(user);
             transaction.commit();
             log.info("User delete user : {}", user.toString());
-        }catch (Exception e){
-            log.error("Error occurred :"+e.getMessage());
+        } catch (Exception e) {
+            transaction.rollback();
+            log.error("Error occurred :" + e.getMessage());
             throw e;
         }
     }
@@ -108,8 +116,9 @@ public class CRUD_OperationImpl implements CRUD_Operation {
             session.merge(user);
             transaction.commit();
             log.info("User update user : {}", user.toString());
-        }catch (Exception e){
-            log.error("Error occurred :"+e.getMessage());
+        } catch (Exception e) {
+            transaction.rollback();
+            log.error("Error occurred :" + e.getMessage());
             throw e;
         }
     }
